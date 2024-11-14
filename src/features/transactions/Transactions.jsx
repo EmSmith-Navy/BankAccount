@@ -1,33 +1,72 @@
-import { useState } from "react";
-
-import { transfer } from "./transactionsSlice";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { transfer, deposit, withdrawal, setBalance } from "./transactionsSlice";
 import "./transactions.scss";
 
 /**
  * Allows users to deposit to, withdraw from, and transfer money from their account.
  */
 export default function Transactions() {
-  // TODO: Get the balance from the Redux store using the useSelector hook
-  const balance = 0;
+  const balance = useSelector((state) => state.transactions.balance);
+  const dispatch = useDispatch();
 
   const [amountStr, setAmountStr] = useState("0.00");
   const [recipient, setRecipient] = useState("");
+  const [error, setError] = useState("");
+  const [lastTransaction, setLastTransaction] = useState(null);
+
+  useEffect(() => {
+    const storedBalance = sessionStorage.getItem("balance");
+    if (storedBalance) {
+      dispatch(setBalance(Number(storedBalance)));
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    sessionStorage.setItem("balance", balance);
+  }, [balance]);
 
   /** Dispatches a transaction action based on the form submission. */
   const onTransaction = (e) => {
     e.preventDefault();
 
-    // This changes depending on which button the user clicked to submit the form.
-    // It will be either "deposit", "withdraw", or "transfer".
     const action = e.nativeEvent.submitter.name;
-
     const amount = +amountStr;
 
-    // TODO: Dispatch the appropriate transaction action based on `action`
+    // Reset error message
+    setError("");
+
+    if (amount <= 0) {
+      setError("Amount must be greater than zero.");
+      return;
+    }
+
+    if ((action === "withdraw" || action === "transfer") && amount > balance) {
+      setError("Insufficient funds for this transaction.");
+      return;
+    }
+
     if (action === "transfer") {
-      // The `transfer` action is dispatched with a payload containing
-      // the amount and the recipient.
       dispatch(transfer({ amount, recipient }));
+    } else if (action === "deposit") {
+      dispatch(deposit(amount));
+    } else if (action === "withdraw") {
+      dispatch(withdrawal({ amount }));
+    }
+
+    setLastTransaction({ type: action, amount, recipient });
+  };
+
+  const undoLastTransaction = () => {
+    if (lastTransaction) {
+      if (lastTransaction.type === "deposit") {
+        dispatch(withdrawal({ amount: lastTransaction.amount }));
+      } else if (lastTransaction.type === "withdraw") {
+        dispatch(deposit(lastTransaction.amount));
+      } else if (lastTransaction.type === "transfer") {
+        dispatch(deposit(lastTransaction.amount));
+      }
+      setLastTransaction(null);
     }
   };
 
@@ -38,6 +77,7 @@ export default function Transactions() {
         <figcaption>Current Balance &nbsp;</figcaption>
         <strong>${balance.toFixed(2)}</strong>
       </figure>
+      {error && <p className="error-message">{error}</p>}
       <form onSubmit={onTransaction}>
         <div className="form-row">
           <label>
@@ -71,6 +111,9 @@ export default function Transactions() {
           <button name="transfer">Transfer</button>
         </div>
       </form>
+      <button onClick={undoLastTransaction} disabled={!lastTransaction}>
+        Undo Last Transaction
+      </button>
     </section>
   );
 }

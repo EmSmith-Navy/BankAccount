@@ -8,19 +8,16 @@ import { createSlice } from "@reduxjs/toolkit";
  * @property {number} balance - The balance after the transaction is completed.
  */
 
-// TODO: Set initial state to have a balance of 0 and an empty array of transactions.
+// Set initial state to have a balance of 0 and an empty array of transactions.
+const initialState = {
+  balance: 0, // Initial balance
+  history: [], // Initial empty transaction history
+};
 
-/** @type {{balance: number, history: Transaction[]}} */
-const initialState = {};
-
-/* TODO
-Add two reducers  to the transactions slice: "deposit" and "transfer".
+/* Add two reducers to the transactions slice: "deposit" and "transfer".
 Both reducers update the balance and then record the transaction.
-
 "deposit" should increase the balance by the amount in the payload,
 while "transfer" should decrease the balance by the amount in the payload.
-
-Refer to the "withdrawal" reducer, which is already implemented for you.
 */
 
 const transactionsSlice = createSlice({
@@ -35,12 +32,34 @@ const transactionsSlice = createSlice({
         balance: state.balance,
       });
     },
+    deposit: (state, { payload }) => {
+      state.balance += payload; // Increase balance by the amount in the payload
+      state.history.push({
+        type: "deposit",
+        amount: payload,
+        balance: state.balance,
+      });
+    },
+    transfer: (state, { payload }) => {
+      state.balance -= payload.amount; // Decrease balance by the amount in the payload
+      state.history.push({
+        type: `transfer/${payload.recipient}`, // Record the transfer type with recipient
+        amount: payload.amount,
+        balance: state.balance,
+      });
+    },
+    setBalance: (state, { payload }) => {
+      state.balance = payload; // Set balance to the payload value
+    },
   },
 });
 
-export const { deposit, withdrawal, transfer } = transactionsSlice.actions;
+// Export actions
+export const { deposit, withdrawal, transfer, setBalance } = transactionsSlice.actions;
 
+// Selectors
 export const selectBalance = (state) => state.transactions.balance;
 export const selectHistory = (state) => state.transactions.history;
 
+// Export the reducer
 export default transactionsSlice.reducer;
